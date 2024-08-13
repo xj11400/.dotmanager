@@ -225,19 +225,45 @@ else
     fi
 
     # get selected items from [_symlinks_] section
-    _symlinks=$(get_keys_in_section "$CONFIG_FILE" "_symlinks_")
-    if [ -n "$_symlinks" ]; then
+    _selected_dirs=()
+    _symlink_opt_dirs=()
+    _symlink_opts=()
+    _symlink_default_dirs=()
+    _symlink_default_opts=()
+    _symlinks_items=$(get_keys_and_values_in_section "$CONFIG_FILE" "_symlinks_")
+    if [ -n "$_symlinks_items" ]; then
         log_info "symlinks value from [_symlinks_] section:"
-        for _symlink in $_symlinks; do
-            log_info "  - $_symlink"
-            _sym_items=$(get_ini_value "$CONFIG_FILE" "_symlinks_" "$_symlink")
-            _parsed_items=$(parse_symlink_items "$_sym_items")
+        while IFS= read -r _sym_item; do
+            log_debug "  - $_sym_item"
+
+            IFS='=' read -r key value <<<"$_sym_item"
+            log_info "  - $key : $value"
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | xargs)
+
+            _parsed_items=$(parse_symlink_items "$value")
+            _parsed_opt=$(parse_symlink_opt "$value")
             log_info "    parsed items: $_parsed_items"
             for item in $_parsed_items; do
-                _selected_dirs+=("${_symlink}/${item}")
+                item="${key}/${item}"
+                _selected_dirs+=("${item}")
+                _symlink_opt_dirs+=("${item}")
+                _symlink_opts+=("${_parsed_opt}")
+                log_info "      add selected dir :${item} ($_parsed_opt)"
             done
-            _symlinks_opt+=("$(parse_symlink_opt "$_sym_items")")
-        done
+
+            # default options
+            if [[ " ${_symlink_default_dirs[@]} " =~ " $key " ]]; then
+                for i in "${!_symlink_default_dirs[@]}"; do
+                    if [[ "$key" == "${_symlink_default_dirs[$i]}" && "$_parsed_opt" != "${_symlink_default_opts[$i]}" ]]; then
+                        _symlink_default_opts[$i]=""
+                    fi
+                done
+            else
+                _symlink_default_dirs+=("${key}")
+                _symlink_default_opts+=("${_parsed_opt}")
+            fi
+        done <<<"$_symlinks_items"
     fi
 fi
 
@@ -270,13 +296,11 @@ else
     log_info "  (empty)"
 fi
 
-# DEBUG: Display items in _symlinks and _symlinks_opt
-log_info "Items in _symlinks and _symlinks_opt:"
-if [ -n "$_symlinks" ] && [ ${#_symlinks_opt[@]} -gt 0 ]; then
-    i=0
-    for item in $_symlinks; do
-        log_info "  - $item : ${_symlinks_opt[$i]}"
-        ((i++))
+# DEBUG: Display items in _symlink_opt_dirs and _symlink_opts
+log_info "Items in _symlink_opt_dirs and _symlink_opts:"
+if [ -n "$_symlink_opt_dirs" ] && [ ${#_symlink_opts[@]} -gt 0 ]; then
+    for i in "${!_symlink_opt_dirs[@]}"; do
+        log_info "  - ${_symlink_opt_dirs[$i]} : ${_symlink_opts[$i]}"
     done
 fi
 
@@ -295,7 +319,7 @@ for dir in "$DOTFILES_DIR"/*; do
     fi
 done
 
-# list and select items
+# DEBUG: directories to link
 if [ ${#_dirs[@]} -gt 0 ]; then
     log_info "Directories to link:"
     for dir in "${_dirs[@]}"; do
@@ -303,6 +327,7 @@ if [ ${#_dirs[@]} -gt 0 ]; then
     done
 fi
 
+# list and select items
 if [ "$_silent" != true ]; then
     # remove _ in $_selected_dirs
     for i in "${!_selected_dirs[@]}"; do
@@ -336,16 +361,49 @@ elif [ ! -d "$TARGET_DIR" ]; then
 fi
 
 # link selected items
+_config_label=()
+_config_items=()
 _idx=0
 _opts_count=$((${#_selected_dirs[@]}))
 for _selected_dir in "${_selected_dirs[@]}"; do
-    i=0
-    for _symlink in $_symlinks; do
-        if [[ "$_selected_dir" == $_symlink/* ]]; then
-            _symlink_opt=${_symlinks_opt[$i]}
+    IFS='/' read -r key value <<<"$_selected_dir"
+    key=$(echo "$key" | xargs)
+    value=$(echo "$value" | xargs)
+
+    # defalut opt
+    _symlink_opt=""
+    _found=false
+
+    if [ -n "$_symlink_opt_dirs" ]; then
+        for i in "${!_symlink_opt_dirs[@]}"; do
+            if [[ "$_selected_dir" == "${_symlink_opt_dirs[$i]}" ]]; then
+                _symlink_opt=${_symlink_opts[$i]}
+                _found=true
+                break
+            fi
+        done
+
+        # dir opt
+        if [ "$_found" = false ] && [ -n "$_symlink_default_dirs" ]; then
+            for i in "${!_symlink_default_dirs[@]}"; do
+                [[ "$key" == "${_symlink_default_dirs[$i]}" ]] && _symlink_opt=${_symlink_default_opts[$i]}
+            done
         fi
-        ((i++))
-    done
+    fi
+
+    # save config
+    _label="${key}=${_symlink_opt}"
+    if ! [[ " ${_config_label[@]} " =~ " ${_label} " ]]; then
+        _config_label+=("$_label")
+        _config_items+=("${value}")
+    else
+        for j in "${!_config_label[@]}"; do
+            if [[ "${_label}" == "${_config_label[$j]}" ]]; then
+                _config_items[$j]="${_config_items[$j]}, ${value}"
+                break
+            fi
+        done
+    fi
 
     # Remove '_/' prefix if present
     _selected_dir=${_selected_dir#_/}
@@ -397,44 +455,27 @@ if ! is_section "$CONFIG_FILE" "_symlinks_"; then
     # If it doesn't exist, add the section
     append_section "$CONFIG_FILE" "_symlinks_"
     msg_step "Added _symlinks_ section to $CONFIG_FILE"
+else
+    # remove old symlink target option
+    msg_step "Removing previous keys in _symlinks_ section"
+    while IFS= read -r _sym_item; do
+        remove_key "$CONFIG_FILE" "_symlinks_" "$_sym_item"
+    done <<<"$(get_keys_in_section "$CONFIG_FILE" "_symlinks_")"
 fi
 
-_symlinks_keys_new=()
-# remove old symlink target option
-for _symlink in $_symlinks; do
-    remove_key "$CONFIG_FILE" "_symlinks_" "$_symlink"
-done
+if [ -n "$_config_label" ] && [ ${#_config_items[@]} -gt 0 ]; then
+    msg_step "Writing [_symlinks_] :"
+    for i in "${!_config_label[@]}"; do
+        IFS='=' read -r key value <<<"${_config_label[$i]}"
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs)
 
-for _selected_dir in "${_selected_dirs[@]}"; do
-    # Split _selected_dir with first '/'
-    IFS='/' read -r key value <<<"$_selected_dir"
+        msg_sub_step "key: ${key}, opt: ${value}, dirs: ${_config_items[$i]}"
 
-    # Remove leading/trailing whitespace
-    key=$(echo "$key" | xargs)
-    value=$(echo "$value" | xargs)
-
-    if ! [[ " ${_symlinks_keys_new[@]} " =~ " ${key} " ]]; then
-        _symlinks_keys_new+=("$key")
-    fi
-
-    # update symlink target
-    update_symlink_target "$CONFIG_FILE" "_symlinks_" "$key" "$value"
-
-done
-
-# Add symlinks options
-for key in "${_symlinks_keys_new[@]}"; do
-    i=0
-    for _symlink in $_symlinks; do
-        if [[ "$_symlink" == "$key" ]] && [[ -n "${_symlinks_opt[$i]}" ]]; then
-            _value=$(get_ini_value "$CONFIG_FILE" "_symlinks_" "$key")
-            _value="${_symlinks_opt[$i]}|${_value}"
-            update_value "$CONFIG_FILE" "_symlinks_" "$key" "$_value"
-        fi
-        ((i++))
+        [ -n "$value" ] && _config_items[$i]="${value} | ${_config_items[$i]}"
+        append_key "$CONFIG_FILE" "_symlinks_" "${key}" "${_config_items[$i]}"
     done
-done
-
+fi
 # ----------| End |----------------------------------------------------------------------
 msg_success "done"
 
