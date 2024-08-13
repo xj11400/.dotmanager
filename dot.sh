@@ -14,19 +14,19 @@
 #
 # Options:
 #   --update              Clone and update repositories in config file
-#   --resymlink           Recreate symbolic links
 #   --repos-update        Update all repositories without recreating symlinks
 #   --silent              Run in silent mode, without interactive
 #   --help, -h            Display this help message
 #
 # Specify options:
+#   --source_dir=<path>   Specify a custom dotfiles directory
 #   --target_dir=<path>   Specify a custom target directory
 #   --config_file=<path>  Specify a custom configuration file path
 #
 # Default values:
-#   config file: .config.ini under the caller's path
-#   dotfiles directory: the directory containing .config.ini
-#   target directory: \$HOME
+#   dotfiles directory: the directory of the parent of this script directory
+#   target directory: the parent of dotfiles directory
+#   config file: .config.ini under the dotfiles directory
 #
 # The script performs the following main tasks:
 # 1. Sets up necessary path variables
@@ -65,8 +65,8 @@ set_log_level "ERROR"
 #
 # parse arguments
 #
+declare TARGET_DIR
 declare MODE
-declare _target_dir
 declare _silent
 
 if [ $# -eq 0 ]; then
@@ -80,16 +80,16 @@ else
             shift
             ;;
         --target_dir=*)
-            _target_dir="${1#*=}"
+            TARGET_DIR="${1#*=}"
+            shift
+            ;;
+        --source_dir=*)
+            DOTFILES_DIR="${1#*=}"
             shift
             ;;
         --update)
             repo_opt="update"
             MODE=${MODE:-"update"}
-            shift
-            ;;
-        --resymlink)
-            MODE=${MODE:-"resymlink"}
             shift
             ;;
         --repos-update)
@@ -110,19 +110,19 @@ else
             echo ""
             echo "Options:"
             echo "  --update              Clone and update repositories in config file"
-            echo "  --resymlink           Recreate symbolic links"
             echo "  --repos-update        Update all repositories without recreating symlinks"
             echo "  --silent              Run in silent mode, without interactive"
             echo "  --help, -h            Display this help message"
             echo ""
             echo "Specify options:"
+            echo "  --source_dir=<path>  Specify a custom dotfiles directory"
             echo "  --target_dir=<path>  Specify a custom target directory"
             echo "  --config_file=<path>  Specify a custom configuration file path"
             echo ""
             echo "Default values:"
-            echo "  config file: .config.ini under the caller's path"
-            echo "  dotfiles directory: the directory containing .config.ini"
-            echo "  target directory: \$HOME"
+            echo "  dotfiles directory: the parent of this script directory"
+            echo "  target directory: the parent of dotfiles directory"
+            echo "  config file: .config.ini under the dotfiles directory"
             exit 0
             ;;
         *)
@@ -147,8 +147,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
         exit 1
     fi
 
-    # if not exist, set MODE to resymlink
-    MODE="resymlink"
+    msg_warning "Config file not found. ($CONFIG_FILE)"
 else
     # clone and update repositories in .config.ini
     if [ "$MODE" = "init" ] || [ "$MODE" = "update" ] || [ "$MODE" = "repos-update" ]; then
@@ -182,11 +181,11 @@ else
     config_target_dir=$(get_ini_value "$CONFIG_FILE" "_configs_" "target_dir")
     if [ -n "$config_target_dir" ]; then
         log_info "target_dir value from [_configs_] section: $config_target_dir"
-        _target_dir=${_target_dir:="$config_target_dir"}
+        TARGET_DIR=${TARGET_DIR:="$config_target_dir"}
 
-        # Resolve _target_dir if it contains $HOME
-        if [[ "$_target_dir" == *"\$HOME"* ]]; then
-            _target_dir="${_target_dir/\$HOME/$HOME}"
+        # Resolve TARGET_DIR if it contains $HOME
+        if [[ "$TARGET_DIR" == *"\$HOME"* ]]; then
+            TARGET_DIR="${TARGET_DIR/\$HOME/$HOME}"
         fi
     fi
 
@@ -242,16 +241,19 @@ else
     fi
 fi
 
+TARGET_DIR=${TARGET_DIR:="$(dirname "$DOTFILES_DIR")"}
+
 #
 # Show information
 #
 
 # Print declared variables
 msg_title ".DotManager"
-echo "Target Directory  : $_target_dir"
-echo "Config File       : $CONFIG_FILE"
-echo "Silent Mode       : ${_silent:-"false"}"
-echo "Mode              : $MODE"
+echo "Dotfiles Directory : $DOTFILES_DIR"
+echo "Target Directory   : $TARGET_DIR"
+echo "Config File        : $CONFIG_FILE"
+echo "Silent Mode        : ${_silent:-"false"}"
+echo "Mode               : $MODE"
 
 #
 # Select Items
@@ -322,17 +324,14 @@ fi
 # Symbolic Link
 #
 msg_title "Symbolic Link"
-# Check if _target_dir exists
-# Set default target path to $HOME if not specified
-_target_dir=${_target_dir:-$HOME}
-
-if [ ! -e "$_target_dir" ]; then
+# Check if TARGET_DIR exists
+if [ ! -e "$TARGET_DIR" ]; then
     # If it doesn't exist, create the directory
-    mkdir -p "$_target_dir"
-    msg_step "Created directory: $_target_dir"
-elif [ ! -d "$_target_dir" ]; then
+    mkdir -p "$TARGET_DIR"
+    msg_step "Created directory: $TARGET_DIR"
+elif [ ! -d "$TARGET_DIR" ]; then
     # If it exists but is not a directory, exit with an error
-    msg_error "Error: $_target_dir exists but is not a directory"
+    msg_error "Error: $TARGET_DIR exists but is not a directory"
     exit 1
 fi
 
@@ -353,10 +352,16 @@ for _selected_dir in "${_selected_dirs[@]}"; do
     log_debug " >>>> opt=$_symlink_opt | $DOTFILES_DIR/$_selected_dir"
     # Symlink
     progress_bar_tag $_selected_dir 50 $_idx ${_opts_count}
-    symlink --target=$_target_dir $_symlink_opt "$DOTFILES_DIR/$_selected_dir"
+    symlink --target=$TARGET_DIR $_symlink_opt "$DOTFILES_DIR/$_selected_dir"
     _idx=$((_idx + 1))
 done
 progress_bar_tag "done" 50 $_idx ${_opts_count}
+
+
+if [ "$_silent" == true ]; then
+    msg_success "done"
+    exit 0
+fi
 
 #
 # Write config file
@@ -368,23 +373,24 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 # Check if _configs_ section exists
-if ! is_section "$CONFIG_FILE" "_configs_"; then
-    # If it doesn't exist, add the section and the target_dir key
-    append_section "$CONFIG_FILE" "_configs_"
-    append_key "$CONFIG_FILE" "_configs_" "target_dir" "$_target_dir"
-    msg_step "Added _configs_ section with target_dir to $CONFIG_FILE"
-else
-    # If it exists, check if target_dir key exists
-    if ! is_key "$CONFIG_FILE" "_configs_" "target_dir"; then
-        # If it doesn't exist, add it to the config file
-        append_key "$CONFIG_FILE" "_configs_" "target_dir" "$_target_dir"
-        msg_step "Added target_dir to _configs_ section in $CONFIG_FILE"
-    else
-        # If it exists, update its value
-        update_value "$CONFIG_FILE" "_configs_" "target_dir" "$_target_dir"
-        msg_step "Updated target_dir in _configs_ section in $CONFIG_FILE"
-    fi
-fi
+# !! Don't modify _configs_ section
+# if ! is_section "$CONFIG_FILE" "_configs_"; then
+#     # If it doesn't exist, add the section and the target_dir key
+#     append_section "$CONFIG_FILE" "_configs_"
+#     append_key "$CONFIG_FILE" "_configs_" "target_dir" "$TARGET_DIR"
+#     msg_step "Added _configs_ section with target_dir to $CONFIG_FILE"
+# else
+#     # If it exists, check if target_dir key exists
+#     if ! is_key "$CONFIG_FILE" "_configs_" "target_dir"; then
+#         # If it doesn't exist, add it to the config file
+#         append_key "$CONFIG_FILE" "_configs_" "target_dir" "$TARGET_DIR"
+#         msg_step "Added target_dir to _configs_ section in $CONFIG_FILE"
+#     else
+#         # If it exists, update its value
+#         update_value "$CONFIG_FILE" "_configs_" "target_dir" "$TARGET_DIR"
+#         msg_step "Updated target_dir in _configs_ section in $CONFIG_FILE"
+#     fi
+# fi
 
 # Check if _symlinks_ section exists
 if ! is_section "$CONFIG_FILE" "_symlinks_"; then
