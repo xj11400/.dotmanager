@@ -9,34 +9,41 @@ function clone_and_update_repos() {
     local target_dir="$2"
     local opt=$3
 
-    if [ -d "$target_dir" ]; then
-        if [ -d "$target_dir/.git" ] && [ "$opt" = "update" ]; then
+    if [ ! -d "$target_dir" ]; then
+        msg_sub_step "Cloning repository to $target_dir"
+        git clone "$repo_url" "$target_dir"
+        return
+    fi
+
+    if [ -d "$target_dir/.git" ]; then
+        if [ "$opt" = "update" ]; then
             local is_dirty=false
-            msg_sub_step "Updating existing repository in $target_dir"
+            msg_sub_step "  Updating existing repository in $target_dir"
             cd "$target_dir"
-            # Check if the git repository is dirty
-            if ! git diff-index --quiet HEAD --; then
-                msg_sub_step "Repository is dirty. Stashing changes..."
-                git stash
-                is_dirty=true
-            fi
 
             # Check if there are new commits on the remote
             git fetch
             if [ "$(git rev-parse HEAD)" != "$(git rev-parse @{u})" ]; then
-                git pull --force
-            fi
 
-            if $is_dirty; then
-                git stash pop
+                # Check if the git repository is dirty
+                if ! git diff-index --quiet HEAD --; then
+                    msg_sub_step "  Repository is dirty. Stashing changes..."
+                    git stash
+                    is_dirty=true
+                fi
+
+                git pull --rebase
+
+                [ "$is_dirty" = true ] && git stash pop
+            else
+                msg_sub_step "  Repository is up to date."
             fi
         else
-            msg_warning "Directory $target_dir exists but is not a git repository"
-            return
+            msg_sub_step "  Repository Directory already exist."
         fi
     else
-        msg_sub_step "Cloning repository to $target_dir"
-        git clone "$repo_url" "$target_dir"
+        msg_warning "  Directory $target_dir exists but is not a git repository"
+        return
     fi
 }
 
