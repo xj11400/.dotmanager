@@ -77,3 +77,10 @@ $HOME/
 │
 └── template/
 ```
+
+## Issue
+
+## TODO
+
+- Add more exclude items
+- Add option to call stow
