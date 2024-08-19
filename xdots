@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+function x_dot() {
+    # environment path
+    local SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+    while [ -h "$SCRIPT_SOURCE" ]; do
+        SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+        SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+        [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE"
+    done
+    local SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+    local CALLER_DIR="$(pwd)"
+
+    # load functions
+    source $SCRIPT_DIR/functions/tui/tui.sh
+    source $SCRIPT_DIR/functions/functions.sh
+    source $SCRIPT_DIR/functions/symlink.sh
+    source $SCRIPT_DIR/functions/ini.sh
+    source $SCRIPT_DIR/functions/dot.sh
+
+    # options
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+        symlink)
+            shift
+
+            # parse options
+            local opts=()
+            local src_dir=()
+            local target=$(dirname "$CALLER_DIR")
+
+            for arg in "$@"; do
+                case $arg in
+                --target=*)
+                    target="${arg#*=}"
+                    ;;
+                --source=*)
+                    src_dir+=("${arg#*=}")
+                    ;;
+                --files)
+                    opts+=("--files")
+                    ;;
+                --resymlink)
+                    opts+=("--resymlink")
+                    ;;
+                --help | -h)
+                    opts+=("--help")
+                    ;;
+                *)
+                    src_dir+=("$CALLER_DIR/$arg")
+                    ;;
+                esac
+            done
+            # call symlink
+            symlink "${opts[@]}" --target="$target" "${src_dir[@]}"
+
+            # done
+            exit 0
+            ;;
+        dot)
+            shift
+            dot "$@"
+            exit 0
+            ;;
+        update)
+            shift
+            for _dir in "$@"; do
+                msg_step "[$_dir]"
+                clone_and_update_repos "-" $_dir "update"
+            done
+            exit 0
+            ;;
+        dot-update)
+            shift
+            clone_and_update_repos "-" $SCRIPT_DIR "update"
+            exit 0
+            ;;
+        --help | -h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  dot                   Dot Manager"
+            echo "  symlink               Create symbolic links"
+            echo "  update                Update specified directories"
+            echo "  dot-update            Update .dotmanager"
+            echo "  --help, -h            Display this help message"
+            echo ""
+            exit 0
+            ;;
+        *)
+            msg_error "Unknown option [$1]"
+            shift
+            exit 1
+            ;;
+        esac
+    done
+}
+
+x_dot $@
