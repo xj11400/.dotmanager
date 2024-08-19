@@ -24,7 +24,7 @@
 #   --config_file=<path>  Specify a custom configuration file path
 #
 # Default values:
-#   dotfiles directory: the directory of the parent of this script directory
+#   dotfiles directory: caller path
 #   target directory: the parent of dotfiles directory
 #   config file: .config.ini under the dotfiles directory
 #
@@ -49,7 +49,7 @@ while [ -h "$SCRIPT_SOURCE" ]; do # resolve $SOURCE until the file is no longer 
 done
 
 SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
-DOTFILES_DIR=$(dirname "$SCRIPT_DIR")
+DOTFILES_DIR="$(pwd)"
 
 # ----------| Start |----------------------------------------------------------------------
 
@@ -120,7 +120,7 @@ else
             echo "  --config_file=<path>  Specify a custom configuration file path"
             echo ""
             echo "Default values:"
-            echo "  dotfiles directory: the parent of this script directory"
+            echo "  dotfiles directory: caller path"
             echo "  target directory: the parent of dotfiles directory"
             echo "  config file: .config.ini under the dotfiles directory"
             exit 0
