@@ -34,19 +34,19 @@ Usage:
 
 Options:
   --update              Clone and update repositories in config file
-  --resymlink           Recreate symbolic links
   --repos-update        Update all repositories without recreating symlinks
-  --silent              Run in silent mode, suppressing most output
+  --silent              Run in silent mode, without interactive
   --help, -h            Display this help message
 
 Specify options:
+  --source_dir=<path>   Specify a custom dotfiles directory
   --target_dir=<path>   Specify a custom target directory
   --config_file=<path>  Specify a custom configuration file path
 
 Default values:
-  config file: .config.ini under the caller's path
-  dotfiles directory: the directory containing .config.ini
-  target directory: $HOME
+  dotfiles directory: caller path
+  target directory: the parent of dotfiles directory
+  config file: .config.ini under the dotfiles directory
 ```
 
 ## Directory Structure
