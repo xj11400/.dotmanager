@@ -10,13 +10,18 @@ function clone_and_update_repos() {
     local opt=$3
 
     if [ ! -d "$target_dir" ]; then
-        msg_sub_step "Cloning repository to $target_dir"
-        git clone "$repo_url" "$target_dir"
+        if [ "$repo_url" == "-" ]; then
+            msg_sub_step "Nothing to update in $target_dir"
+        else
+            msg_sub_step "Cloning repository to $target_dir"
+            git clone "$repo_url" "$target_dir"
+        fi
         return
     fi
 
     if [ -d "$target_dir/.git" ]; then
         if [ "$opt" = "update" ]; then
+            local cwd=$(pwd)
             local is_dirty=false
             msg_sub_step "  Updating existing repository in $target_dir"
             cd "$target_dir"
@@ -38,6 +43,7 @@ function clone_and_update_repos() {
             else
                 msg_sub_step "  Repository is up to date."
             fi
+            cd "$cwd"
         else
             msg_sub_step "  Repository Directory already exist."
         fi
@@ -100,4 +106,14 @@ function parse_symlink_opt() {
 
     # Return the option (or empty string if no '|' was found)
     echo "$opt"
+}
+
+function check_cmd() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+function need_cmd() {
+    if ! check_cmd "$1"; then
+        msg_error "need '$1' (command not found)"
+    fi
 }
