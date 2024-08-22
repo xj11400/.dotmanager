@@ -6,7 +6,8 @@
 
 function list_directories() {
     local dir="$1"
-    local exclude_items=("\.git") # TODO: add more exclude items
+    local exclude_items=("\.git" "\.tmp$")
+    local dir_list=()
 
     # Check if the directory exists
     if [ ! -d "$dir" ]; then
@@ -14,17 +15,38 @@ function list_directories() {
         return 1
     fi
 
-    # Use find to list directories recursively, excluding specified items
-    find "$dir" -type d | sed "s|^$dir/||" | grep -vE "^$|$(
-        IFS=\|
-        echo "${exclude_items[*]}"
-    )" | grep -v "^$dir$" | sort
+    local _current_pass_dir
+    # List directly under $dir
+    while IFS= read -r _dir; do
+        exclude=false
+        for exclude_item in "${exclude_items[@]}"; do
+            #
+            if [[ -n "$_current_pass_dir" && "$_dir" == "${_current_pass_dir}"* ]]; then
+                exclude=true
+                log_debug "  $_dir  <pass dir>  $_current_pass_dir"
+                break
+            fi
+            #
+            if [[ "$_dir" =~ $exclude_item ]]; then
+                exclude=true
+                _current_pass_dir=$_dir
+                log_debug "  $_dir  <catch dir>  $exclude_item"
+                break
+            fi
+        done
+        if [ "$exclude" = false ] && [ -n "$_dir" ]; then
+            dir_list+=("$_dir")
+        fi
+    done <<<"$(find "$dir" -type d | sed "s|^$dir/||" | grep -v "^$dir$")"
 
+    # Sort the dir list and save it to a variable
+    IFS=$'\n' sorted_dir_list=($(sort <<<"${dir_list[*]}"))
+    echo "${sorted_dir_list[*]}"
 }
 
 function list_files() {
     local dir="$1"
-    local exclude_items=("README.md" ".DS_Store") # TODO: add more exclude items
+    local exclude_items=("README.md" ".DS_Store" "\.git" "\.bak$")
     local file_list=()
 
     # List files directly under $dir
@@ -32,8 +54,9 @@ function list_files() {
         filename=$(basename "$file")
         exclude=false
         for exclude_item in "${exclude_items[@]}"; do
-            if [[ "$filename" == "$exclude_item" ]]; then
+            if [[ "$filename" =~ $exclude_item ]]; then
                 exclude=true
+                log_debug "     $filename  <catch file>  $exclude_item"
                 break
             fi
         done
@@ -49,29 +72,22 @@ function list_files() {
 
 function list_files_recursive() {
     local dir="$1"
-    local exclude_items=("README.md" ".DS_Store")
 
     _dirs=$(list_directories "$dir")
 
     # Initialize an empty array to store the file list
     local file_list=()
+    local tmp_files
 
     # Iterate through all directories
     while IFS= read -r subdir; do
-        # Use find to list files in the current directory, excluding specified items
-        while IFS= read -r file; do
-            filename=$(basename "$file")
-            exclude=false
-            for exclude_item in "${exclude_items[@]}"; do
-                if [[ "$filename" == "$exclude_item" ]]; then
-                    exclude=true
-                    break
-                fi
-            done
-            if [ "$exclude" = false ] && [ -n "$filename" ]; then
-                file_list+=("${subdir:+$subdir/}$filename")
-            fi
-        done <<<"$(find "$dir/$subdir" -maxdepth 1 -type f)"
+        tmp_files=("$(list_files "$dir/$subdir")")
+        if [ -z "${tmp_files[*]}" ]; then
+            continue
+        fi
+        while IFS= read -r _file; do
+            file_list+=("${subdir:+$subdir/}$_file")
+        done <<<"${tmp_files[*]}"
     done <<<"$_dirs"
 
     # Sort the file list and save it to a variable
@@ -87,7 +103,7 @@ function list_files_and_directories() {
     # Filter directories to keep only those at the end of the hierarchy
     local root_dirs=()
     local tmp_files
-    for _dir in $_dirs; do
+    while IFS= read -r _dir; do
         # Check if the directory contains no subdirectories
         if [ -z "$(find "$dir/$_dir" -maxdepth 1 -type d -not -path "$dir/$_dir")" ]; then
             # log_debug "        ------root"
@@ -101,7 +117,7 @@ function list_files_and_directories() {
                 done <<<"${tmp_files[*]}"
             fi
         fi
-    done
+    done <<< "$_dirs"
 
     root_dirs+=("$(list_files "$dir")")
 
@@ -117,15 +133,15 @@ function _symlink() {
 
     local _symlink_items=()
     if [ "$opt_files" = true ]; then
-        _symlink_items+=($(list_files_recursive "$src_dir"))
+        _symlink_items+=("$(list_files_recursive "$src_dir")")
     else
-        _symlink_items+=($(list_files_and_directories "$src_dir"))
+        _symlink_items+=("$(list_files_and_directories "$src_dir")")
     fi
 
     # Check if the target item already exists
     local _target_item
     local _items_to_symlink=()
-    for _item in "${_symlink_items[@]}"; do
+    while IFS= read -r _item; do
         log_info "symlink item: $_item"
         _target_item="$target_dir/$_item"
         if [ -e "$_target_item" ] || [ -L "$_target_item" ]; then
@@ -145,11 +161,11 @@ function _symlink() {
             # Remove existing symlink if --resymlink is set
             log_info "Removing existing symlink '$_target_item'."
             rm "$_target_item"
-            _items_to_symlink+=("$_item")
+            _items_to_symlink+=("${_item}")
         else
-            _items_to_symlink+=("$_item")
+            _items_to_symlink+=("${_item}")
         fi
-    done
+    done <<< "$_symlink_items"
 
     # Perform symlink
     local _src_item
@@ -245,6 +261,6 @@ function symlink() {
 
     # Get the list of items to symlink
     for _src_dir in "${src_dir[@]}"; do
-        _symlink $_src_dir $target_dir $_opt_files
+        _symlink "${_src_dir}" "${target_dir}" $_opt_files
     done
 }
