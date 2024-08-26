@@ -20,41 +20,77 @@ To use DotManager with your dotfiles:
 ### Using Repository Only
 
 - Clone the repository to your exist dotfiles directory.
-- Execute the `dot.sh` script under the repository.
+- Execute the `xdots` script under the repository.
 
-### Esecute dot.sh
+### Execute xdots
 
-```
-Usage:
-  ./dot.sh [OPTIONS]
+- `xdots [OPTIONS]`
 
-(no options)
-  Clone and update repositories in config file (if exists), and
-  create symbolic links under dotfiles directory to target path.
+  ```
+  Usage: xdots [OPTIONS]
 
-Options:
-  --update              Clone and update repositories in config file
-  --repos-update        Update all repositories without recreating symlinks
-  --silent              Run in silent mode, without interactive
-  --help, -h            Display this help message
+  Options:
+    dot                   Dot Manager
+    symlink               Create symbolic links
+    update                Update specified directories
+    dot-update            Update .dotmanager
+    --help, -h            Display this help message
+  ```
 
-Specify options:
-  --source_dir=<path>   Specify a custom dotfiles directory
-  --target_dir=<path>   Specify a custom target directory
-  --config_file=<path>  Specify a custom configuration file path
+- `xdots dot [OPTIONS]`
 
-Default values:
-  dotfiles directory: caller path
-  target directory: the parent of dotfiles directory
-  config file: .config.ini under the dotfiles directory
-```
+  ```
+  Usage:
+    xdots dot [OPTIONS]
+
+  (no options)
+    Clone and update repositories in config file (if exists), and
+    create symbolic links under dotfiles directory to target path.
+
+  Options:
+    --update              Clone and update repositories in config file
+    --repos-update        Update all repositories without recreating symlinks
+    --silent              Run in silent mode, without interactive
+    --help, -h            Display this help message
+
+  Specify options:
+    --source_dir=<path>   Specify a custom dotfiles directory
+    --target_dir=<path>   Specify a custom target directory
+    --config_file=<path>  Specify a custom configuration file path
+
+  Default values:
+    dotfiles directory: caller path
+    target directory: the parent of dotfiles directory
+    config file: .config.ini under the dotfiles directory
+  ```
+
+- `xdots symlink [OPTIONS]`
+
+  ```
+  Usage: $0 [OPTIONS] <directory>
+
+  Options:
+    --files               Create a symlink for each file in the directory
+    --resymlink           Resymlink existing symlinks or create new symlinks
+    --help, -h            Display this help message
+
+  Specify options:
+    --source=<path>  Specify a custom dotfiles directory
+    --target=<path>  Specify a custom target directory
+  ```
+
+- `xdots update [OPTIONS]`
+
+  ```
+  Usage: xdots update [DIRECTORIES...]
+  ```
 
 ## Directory Structure
 
-`target_dir` : default is `$HOME`
-`dotfiles_dir` : `$HOME/.dotfiles`
+When running `sh dot_setup.sh` under `~/.dotfiles` and specifying the `~/.dotfiles/zsh` directory to link, it will create the symbolic links as follows:
 
-If `~/.dotfiles/zsh` directory is specified to link, it will create the symbolic links as follows:
+`target_dir` : `$HOME` (The default is the parent directory of the caller.)
+`dotfiles_dir` : `$HOME/.dotfiles`
 
 ```
 $HOME/
@@ -77,10 +113,3 @@ $HOME/
 │
 └── template/
 ```
-
-## Issue
-
-## TODO
-
-- Add more exclude items
-- Add option to call stow
