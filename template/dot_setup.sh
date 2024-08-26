@@ -6,5 +6,5 @@ if [ ! -d "./.dotmanager" ]; then
     git clone --depth 1 https://github.com/xj11400/.dotmanager.git .dotmanager
 fi
 
-# source ./.dotmanager/dot.sh --config_file=<config_file_path> --target_dir=<target_dir_path> --silent
-source ./.dotmanager/dot.sh
+# source ./.dotmanager/xdots dot --config_file=<config_file_path> --target_dir=<target_dir_path> --silent
+source ./.dotmanager/xdots dot
