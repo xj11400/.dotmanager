@@ -130,6 +130,7 @@ function _symlink() {
     local src_dir=$1
     local target_dir=$2
     local opt_files=$3
+    local opt_skip=$4
 
     local _symlink_items=()
     if [ "$opt_files" = true ]; then
@@ -149,6 +150,9 @@ function _symlink() {
             # Check if the target item is not a symlink
             if [ ! -L "$_target_item" ]; then
                 msg_error "Error: '$_target_item' exists and is not a symlink. Skipping."
+                if [ "$opt_skip" = true ]; then
+                  continue
+                fi
                 exit 1
             fi
 
@@ -191,6 +195,7 @@ function symlink() {
     # parse options
     local _opt_files=false
     local _opt_resymlink=false
+    local _opt_skip=false
 
     # Parse parameters
     for arg in "$@"; do
@@ -207,6 +212,9 @@ function symlink() {
         --resymlink)
             _opt_resymlink=true
             ;;
+        --skip)
+            _opt_skip=true
+            ;;
         --help | -h)
             echo "Create symlinks from specific directories to target path."
             echo ""
@@ -220,6 +228,9 @@ function symlink() {
             echo "Specify options:"
             echo "  --source=<path>  Specify a custom dotfiles directory"
             echo "  --target=<path>  Specify a custom target directory"
+            echo ""
+            echo "Optional:"
+            echo "  --skip                Skip existing files and continue"
             echo ""
             exit 0
             ;;
@@ -261,6 +272,6 @@ function symlink() {
 
     # Get the list of items to symlink
     for _src_dir in "${src_dir[@]}"; do
-        _symlink "${_src_dir}" "${target_dir}" $_opt_files
+        _symlink "${_src_dir}" "${target_dir}" $_opt_files $_opt_skip
     done
 }

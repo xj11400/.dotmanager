@@ -77,6 +77,9 @@ To use DotManager with your dotfiles:
   Specify options:
     --source=<path>  Specify a custom dotfiles directory
     --target=<path>  Specify a custom target directory
+
+  Optional:
+    --skip                Skip existing files and continue"
   ```
 
 - `xdots update [OPTIONS]`
