@@ -7,7 +7,7 @@ Download the files from this directory to your root dotfiles directory.
 
 ## Configuration
 
-it has three parts in the file:
+it has three parts in the `.config.ini`:
 - `[_configs_]` : configuration for the dotfiles
 - `[_symlinks_]` : symbolic links for the dotfiles
 - `[...]` : packages
@@ -17,8 +17,8 @@ it has three parts in the file:
 ; target_dir : the directory to create symbolic links (default: $HOME) (optional)
 ; pkg_dirs : which directory under dotfiles directory has packages to scan which is not in the declared below (optional)
 [_configs_]
-;target_dir = $HOME
-pkg_dirs = utils, apps, packages, custom
+target_dir = $HOME
+pkg_dirs = utils, apps
 
 ; -- symbolic links --
 ; key : the name of the repository directory
@@ -31,15 +31,17 @@ pkg_dirs = utils, apps, packages, custom
 ;    otherwise, will link files and directories under the target directory.
 [_symlinks_]
 ; _ : the underline means the root of the dotfiles directory
-; 'repo_only': the package been selected under key directory
+; 'repo_only': the package been selected under root directory
 _ = repo_only
 ; packages means there have a repository directory under the dotfiles directory named packages
 ; 'zsh, nvim, ...' : the packages been selected under the packages directory
-packages=--files | zsh, nvim, tmux, git, lazygit
+packages= --files --skip | zsh, nvim, tmux, git, lazygit
 ; 'custom' means there have a repository directory under the dotfiles directory named custom
-; 'ranger, wezterm...' : the packages been selected under the custom directory
-custom= ranger, wezterm
-
+; 'foo, bar...' : the packages been selected under the custom directory
+custom= foo, bar
+; folder_only means there have a repository directory under the dotfiles directory named folder_only
+; 'xxx' : the package been selected under the folder_only directory
+folder_only= --files | xxx
 
 ; -- packages --
 ; [pkg_dir] : the name of the directory will be created under the dotfiles directory
@@ -54,21 +56,22 @@ custom= ranger, wezterm
 ; packages
 [packages]
 _ = https://github.com/xj11400/.dotfiles.git
-zsh = https://github.com/xj11400/dot-zsh.git
+zsh = https://github.com/xj11400/dot-custom.git
+nvim = https://github.com/xj11400/dot-custom.git
+tmux = https://github.com/xj11400/dot-custom.git
 ; following the url, can give the branch name as git command
-nvim = https://github.com/xj11400/dot-nvim.git --branch=zx
-tmux = https://github.com/xj11400/dot-tmux.git
+dev = https://github.com/xj11400/dot-custom.git --branch=dev
 
 [custom]
-_ = https://github.com/xj11400/dot_custom.git
-wezterm = https://github.com/xj11400/dot-wezterm.git
-x_deploy = https://github.com/xj11400/dot_deploy.git
+_ = https://github.com/xj11400/dot-custom.git
+foo = https://github.com/xj11400/dot-custom.git
+bar = https://github.com/xj11400/dot-custom.git
 
 [repo_only]
-_ = https://github.com/xj11400/dot-tmux.git
+_ = https://github.com/xj11400/dot-custom.git
 
 [folder_only]
-custom = https://github.com/xj11400/dot-tmux.git
+xxx = https://github.com/xj11400/dot-custom.git
 
 ```
 
@@ -76,14 +79,20 @@ custom = https://github.com/xj11400/dot-tmux.git
 
 ```
 .dotfiles                             # the root directory of the dotfiles
+│
+│                                     # ----- only need to create these two files  -----
+├── .config.ini                       # configuration for the dotfiles
+├── dot_setup.sh                      # setup script
+│
+│                                     # ----- downloaded by the dot_setup.sh -----------
+├── .dotmanager/...                   # DotManager clone by the dot_setup.sh
+│
+│                                     # ----- already exists in the root directory -----
 ├── _fonts/                           # won't be scanned with name prefix with '_' and '.'
 ├── utils/                            # directory under the root directory
 ├── apps/                             # directory under the root directory
 │
-├── .config.ini                       # configuration for the dotfiles
-├── dot_setup.sh                      # setup script
-├── .dot/...                          # DotManager clone by the dot_setup.sh
-│
+│                                     # ----- downloaded by the .dotmanager ------------
 ├── packages                          # packages in xj11400/.dotfiles.git
 │   ├── git/.config/git/
 │   ├── lazygit/.config/lazygit/
@@ -92,24 +101,21 @@ custom = https://github.com/xj11400/dot-tmux.git
 │   ├──       .
 │   ├──       . 
 │   │
-│   ├── nvim/.config/nvim/            # packages in xj11400/.dot-nvim.git
-│   ├── tmux/.config/tmux/            # packages in xj11400/.dot-tmux.git
-│   └── zsh/.config/zsh/              # packages in xj11400/.dot-zsh.git
+│   ├── nvim/.config/nvim/            # packages in xj11400/.dot-custom.git
+│   ├── tmux/.config/tmux/            # packages in xj11400/.dot-custom.git
+│   └── zsh/.config/zsh/              # packages in xj11400/.dot-custom.git
 │
-├── custom                            # packages in xj11400/.dot_custom.git
-│   ├── ranger/.config/ranger/
+├── custom                            # packages in xj11400/.dot-custom.git
+│   ├── zsh/.config/zsh/
 │   ├──       .
 │   ├──       .
-│   ├──       . 
+│   ├──       .
 │   │
-│   ├── x_deploy/...                  # packages in xj11400/.dot_deploy.git
-│   └── wezterm/.config/wezterm/      # packages in xj11400/.dot-wezterm.git
-│
-├── repo_only                         # packages in xj11400/.dot-tmux.git
-│   └── .config/tmux/
+│   ├── foo/...                       # packages in xj11400/.dot-custom.git
+│   └── bar/...                       # packages in xj11400/.dot-custom.git
 │
 ├── folder_only
-│   └── tmux/.config/tmux/            # packages in xj11400/.dot-tmux.git
+│   └── xxx/...                       # packages in xj11400/.dot-tmux.git
 │
 └── README.md
 ```
