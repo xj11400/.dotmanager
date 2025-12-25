@@ -112,6 +112,12 @@ function dot() {
         done
     fi
 
+    # check if forced into text mode by xdots
+    if [ "$_force_text_mode" = true ]; then
+        _text_mode=true
+        _silent=true
+    fi
+
     msg_title "Check Config File"
     #
     # Config File
