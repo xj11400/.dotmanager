@@ -11,8 +11,31 @@ function x_dot() {
     local SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
     local CALLER_DIR="$(pwd)"
 
+    # check terminal capability
+    local use_tui=true
+    if [[ ! -t 1 ]] || [[ "$TERM" == "dumb" ]]; then
+        use_tui=false
+    fi
+
+    # check if --text is in arguments
+    for arg in "$@"; do
+        if [[ "$arg" == "--text" ]]; then
+            use_tui=false
+            break
+        fi
+    done
+
     # load functions
-    source $SCRIPT_DIR/functions/tui/tui.sh
+    if [ "$use_tui" = true ]; then
+        source $SCRIPT_DIR/functions/tui/tui.sh
+    else
+        source $SCRIPT_DIR/functions/tui/text_ui.sh
+        if [[ "$1" == "dot" ]]; then
+            # can't easily inject --text here without potentially messing up order,
+            export _force_text_mode=true
+        fi
+    fi
+
     source $SCRIPT_DIR/functions/functions.sh
     source $SCRIPT_DIR/functions/symlink.sh
     source $SCRIPT_DIR/functions/ini.sh
