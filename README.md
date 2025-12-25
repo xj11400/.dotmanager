@@ -3,6 +3,10 @@
 A simple dotfiles manager written in shell script for environments without nix or stow.
 It creates symbolic links to the target directory.
 
+> [!NOTE]
+> This version uses a refactored `.config.ini` structure incompatible with legacy versions.
+> Legacy version is on `branch:legacy`.
+
 ## Usage
 
 To use DotManager with your dotfiles:
@@ -26,7 +30,7 @@ To use DotManager with your dotfiles:
 
 - `xdots [OPTIONS]`
 
-  ```
+  ```text
   Usage: xdots [OPTIONS]
 
   Options:
@@ -39,7 +43,7 @@ To use DotManager with your dotfiles:
 
 - `xdots dot [OPTIONS]`
 
-  ```
+  ```text
   Usage:
     xdots dot [OPTIONS]
 
@@ -51,6 +55,7 @@ To use DotManager with your dotfiles:
     --update              Clone and update repositories in config file
     --repos-update        Update all repositories without recreating symlinks
     --silent              Run in silent mode, without interactive
+    --text                Run in text mode, without TUI elements
     --help, -h            Display this help message
 
   Specify options:
@@ -60,13 +65,13 @@ To use DotManager with your dotfiles:
 
   Default values:
     dotfiles directory: caller path
-    target directory: the parent of dotfiles directory
-    config file: .config.ini under the dotfiles directory
+    target_dir: the parent of dotfiles directory
+    config_file: .config.ini under the dotfiles directory
   ```
 
 - `xdots symlink [OPTIONS]`
 
-  ```
+  ```text
   Usage: $0 [OPTIONS] <directory>
 
   Options:
@@ -84,7 +89,7 @@ To use DotManager with your dotfiles:
 
 - `xdots update [OPTIONS]`
 
-  ```
+  ```text
   Usage: xdots update [DIRECTORIES...]
   ```
 
@@ -95,7 +100,7 @@ When running `sh dot_setup.sh` under `~/.dotfiles` and specifying the `~/.dotfil
 `target_dir` : `$HOME` (The default is the parent directory of the caller.)
 `dotfiles_dir` : `$HOME/.dotfiles`
 
-```
+```text
 $HOME/
 ├── .config
 │   └── zsh
