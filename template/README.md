@@ -7,77 +7,78 @@ Download the files from this directory to your root dotfiles directory.
 
 ## Configuration
 
-it has three parts in the `.config.ini`:
-- `[_configs_]` : configuration for the dotfiles
-- `[_symlinks_]` : symbolic links for the dotfiles
-- `[...]` : packages
+The `.config.ini` file controls how `dotmanager` manages your dotfiles effectively.
+
+### Structure Overview
+
+The configuration is divided into three main parts:
+
+- `[_configs_]` : Global configuration blocks (currently optional/placeholders).
+- `[_repos_]` : Marker for repository definitions. All sections following this are treated as repositories to clone/update.
+- `[_symlinks_]` : Marker for symlink tasks. All sections following this are independent **Tasks**.
+
+### 1. Repositories `[_repos_]`
+
+Define git repositories to clone. The section name determines the directory structure.
 
 ```ini
-; -- configs --
-; target_dir : the directory to create symbolic links (default: $HOME) (optional)
-; pkg_dirs : which directory under dotfiles directory has packages to scan which is not in the declared below (optional)
-[_configs_]
-target_dir = $HOME
-pkg_dirs = utils, apps
+[_repos_]
 
-; -- symbolic links --
-; key : the name of the repository directory
-;       if the key is '_', it means the root of the dotfiles directory
-;       the key should be the name of section name that given below or declared in the pkg_dirs
-; value : packages been selected under the repository directory
-;
-; options: (separated by '|' and added to the front of the list)
-;    --files : every files will be linked.
-;    otherwise, will link files and directories under the target directory.
-[_symlinks_]
-; _ : the underline means the root of the dotfiles directory
-; 'repo_only': the package been selected under root directory
-_ = repo_only
-; packages means there have a repository directory under the dotfiles directory named packages
-; 'zsh, nvim, ...' : the packages been selected under the packages directory
-packages= --files --skip | zsh, nvim, tmux, git, lazygit
-; 'custom' means there have a repository directory under the dotfiles directory named custom
-; 'foo, bar...' : the packages been selected under the custom directory
-custom= foo, bar
-; folder_only means there have a repository directory under the dotfiles directory named folder_only
-; 'xxx' : the package been selected under the folder_only directory
-folder_only= --files | xxx
-
-; -- packages --
-; [pkg_dir] : the name of the directory will be created under the dotfiles directory
-; key = value
-;
-;  key : the name of the repository directory and the repository will be cloned to the directory under the pkg_dir
-;        if the key is '_', it means the root of the pkg_dir
-;  value : the url of the repository
-;
-; ! NOTE ! If this is a packages directory, add it to [_configs_] pkg_dirs
-
-; packages
+; Clone into .dotfiles/packages/
 [packages]
-_ = https://github.com/xj11400/.dotfiles.git
 zsh = https://github.com/xj11400/dot-custom.git
-nvim = https://github.com/xj11400/dot-custom.git
-tmux = https://github.com/xj11400/dot-custom.git
-; following the url, can give the branch name as git command
 dev = https://github.com/xj11400/dot-custom.git --branch=dev
 
+; Clone into .dotfiles/custom/
 [custom]
 _ = https://github.com/xj11400/dot-custom.git
-foo = https://github.com/xj11400/dot-custom.git
-bar = https://github.com/xj11400/dot-custom.git
+```
 
-[repo_only]
-_ = https://github.com/xj11400/dot-custom.git
+### 2. Symlink Tasks `[_symlinks_]`
 
-[folder_only]
-xxx = https://github.com/xj11400/dot-custom.git
+After `[_symlinks_]`, each section (e.g., `[main]`, `[local]`) defines a separate symlinking task with its own scope.
 
+#### Task Options
+
+Always place these options at the top of the task section:
+
+- `target_dir`: Where to create symlinks (e.g., `$HOME`, `$HOME/.config`). Defaults to parent of dotfiles dir.
+- `pkg_dirs`: Which subdirectories in `.dotfiles/` to scan for items.
+  - `_` : Represents the root `.dotfiles/` directory.
+  - Directories starting with `_` or `.` are ignored by default unless explicitly listed here.
+- `silent`: Set to `true` to skip interactive selection for this task.
+
+#### Link Rules
+
+Define what to link using the format:
+`group = [options |] item1, item2...`
+
+- **Group**: Matches a directory in `pkg_dirs` (e.g., `_`, `_user`, `packages`).
+- **Options**:
+  - `--files`: Link individual files inside the directory instead of the directory itself.
+  - `--skip`: Skip if target already exists (don't error).
+  - `--resymlink`: Force re-creation of symlinks.
+
+### Example
+
+```ini
+[_symlinks_]
+
+[dotfiles]
+target_dir = $HOME
+pkg_dirs = _, _user
+silent = false
+
+; Link 'fsh' and 'git' from root (_) dir, linking individual files
+_ = --files | fsh, git
+
+; Link 'nvim' from '_user' dir
+_user = nvim
 ```
 
 ## Directory Structure
 
-```
+```text
 .dotfiles                             # the root directory of the dotfiles
 │
 │                                     # ----- only need to create these two files  -----
@@ -115,8 +116,7 @@ xxx = https://github.com/xj11400/dot-custom.git
 │   └── bar/...                       # packages in xj11400/.dot-custom.git
 │
 ├── folder_only
-│   └── xxx/...                       # packages in xj11400/.dot-tmux.git
+│   └── xxx/...                       # packages in xj11400/.dot-custom.git
 │
 └── README.md
 ```
-

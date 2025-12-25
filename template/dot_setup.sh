@@ -7,4 +7,4 @@ if [ ! -d "./.dotmanager" ]; then
 fi
 
 # source ./.dotmanager/xdots dot --config_file=<config_file_path> --target_dir=<target_dir_path> --silent
-source ./.dotmanager/xdots dot
+source ./.dotmanager/xdots dot $@
