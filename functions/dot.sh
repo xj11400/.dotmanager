@@ -74,6 +74,11 @@ function dot() {
                 _silent=true
                 shift
                 ;;
+            --text)
+                _text_mode=true
+                _silent=true
+                shift
+                ;;
             --help | -h)
                 echo "Usage: $0 [OPTIONS]"
                 echo ""
@@ -85,6 +90,7 @@ function dot() {
                 echo "  --update              Clone and update repositories in config file"
                 echo "  --repos-update        Update all repositories without recreating symlinks"
                 echo "  --silent              Run in silent mode, without interactive"
+                echo "  --text                Run in text mode, without TUI elements"
                 echo "  --help, -h            Display this help message"
                 echo ""
                 echo "Specify options:"
@@ -252,6 +258,7 @@ function dot() {
     echo "Target Directory   : $TARGET_DIR"
     echo "Config File        : $CONFIG_FILE"
     echo "Silent Mode        : ${_silent:-"false"}"
+    echo "Text Mode          : ${_text_mode:-"false"}"
     echo "Mode               : $MODE"
 
     #
@@ -316,6 +323,8 @@ function dot() {
                 _selected_dirs[$i]="_/${_selected_dirs[$i]}"
             fi
         done
+    elif [ "$_text_mode" = true ]; then
+        msg_step "Text mode: using selected items from config"
     fi
 
     #
@@ -382,11 +391,15 @@ function dot() {
         _selected_dir=${_selected_dir#_/}
         log_debug " >>>> opt=$_symlink_opt | $DOTFILES_DIR/$_selected_dir"
         # Symlink
-        progress_bar_tag $_selected_dir 50 $_idx ${_opts_count}
+        if [ "$_text_mode" = true ]; then
+            msg_sub_step "Linking: $_selected_dir"
+        else
+            progress_bar_tag $_selected_dir 50 $_idx ${_opts_count}
+        fi
         symlink --target=$TARGET_DIR $_symlink_opt "$DOTFILES_DIR/$_selected_dir"
         _idx=$((_idx + 1))
     done
-    progress_bar_tag "done" 50 $_idx ${_opts_count}
+    [ "$_text_mode" != true ] && progress_bar_tag "done" 50 $_idx ${_opts_count}
 
     if [ "$_silent" == true ]; then
         msg_success "done"
