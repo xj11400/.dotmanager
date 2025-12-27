@@ -47,6 +47,10 @@ Always place these options at the top of the task section:
   - `_` : Represents the root `.dotfiles/` directory.
   - Directories starting with `_` or `.` are ignored by default unless explicitly listed here.
 - `silent`: Set to `true` to skip interactive selection for this task.
+- `direct`: Set to `true` to enable Direct Mode.
+  - In Direct Mode, items are linked into a subdirectory of `target_dir` matching the item name (GNU Stow-style).
+  - Example: `pkg_dirs/_/git` linked to `target_dir` will result in `target_dir/git/...`.
+  - Without Direct Mode, contents are linked directly into `target_dir` (flattened).
 
 #### Link Rules
 
