@@ -225,7 +225,7 @@ function process_symlink_task() {
     mkdir -p "$_target_dir"
 
     local _idx=0
-    local _total=${#_selected_items[@]}
+    local _total=$(( ${#_selected_items[@]} + 1 ))
 
     # Structure for Write-back: parallel arrays
     # Identifier (key+opt), Item List
