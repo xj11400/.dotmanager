@@ -81,6 +81,7 @@ function list_files_recursive() {
 
     # Iterate through all directories
     while IFS= read -r subdir; do
+        [ -z "$subdir" ] && continue
         tmp_files=("$(list_files "$dir/$subdir")")
         if [ -z "${tmp_files[*]}" ]; then
             continue
@@ -92,7 +93,7 @@ function list_files_recursive() {
 
     # Sort the file list and save it to a variable
     IFS=$'\n' sorted_file_list=($(sort <<<"${file_list[*]}"))
-    echo "${sorted_file_list[*]}"
+    [ -n "${sorted_file_list[*]}" ] && echo "${sorted_file_list[*]}"
     # list files under $dir
     list_files $dir
 }
@@ -143,6 +144,7 @@ function _symlink() {
     local _target_item
     local _items_to_symlink=()
     while IFS= read -r _item; do
+        [ -z "$_item" ] && continue
         log_info "symlink item: $_item"
         _target_item="$target_dir/$_item"
         if [ -e "$_target_item" ] || [ -L "$_target_item" ]; then

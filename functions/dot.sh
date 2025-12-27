@@ -42,12 +42,14 @@ function process_symlink_task() {
     local _silent_mode="$4"
     local _config_file="$5"
     local _dotfiles_dir="$6"
+    local _direct_mode="$7"
 
     msg_title "Task: $_task_name"
     log_info "Processing Task: $_task_name"
     log_info "  Target Dir : $_target_dir"
     log_info "  Pkg Dirs   : $_pkg_dirs_str"
     log_info "  Silent     : $_silent_mode"
+    log_info "  Direct Mode: $_direct_mode"
 
     #
     # Parse pkg_dirs
@@ -119,7 +121,7 @@ function process_symlink_task() {
         value=$(echo "$value" | xargs)
 
         # Skip reserved keys
-        [[ "$key" == "target_dir" || "$key" == "pkg_dirs" || "$key" == "silent" ]] && continue
+        [[ "$key" == "target_dir" || "$key" == "pkg_dirs" || "$key" == "silent" || "$key" == "direct" ]] && continue
         [ -z "$key" ] && continue
 
         # Parse value: options | item1, item2...
@@ -243,9 +245,15 @@ function process_symlink_task() {
         # Link
         # Strip '_/' prefix if present (maps to root)
         local link_path="${item#_/}"
+
+        local _current_target_dir="$_target_dir"
+        if [[ "$_direct_mode" == "true" ]]; then
+            _current_target_dir="$_target_dir/$subitem"
+        fi
+
         # if not text mode... handle UI
         progress_bar_tag "$link_path" 50 $((_idx + 1)) $_total
-        symlink --target="$_target_dir" $opt "$_dotfiles_dir/$link_path"
+        symlink --target="$_current_target_dir" $opt "$_dotfiles_dir/$link_path"
 
         # Prepare for Config Write-back
         # Group by "Key|Option" to preserve option grouping
@@ -280,6 +288,7 @@ function process_symlink_task() {
     local _raw_target_dir=$(get_ini_value "$_config_file" "$_task_name" "target_dir")
     local _raw_pkg_dirs=$(get_ini_value "$_config_file" "$_task_name" "pkg_dirs")
     local _raw_silent=$(get_ini_value "$_config_file" "$_task_name" "silent")
+    local _raw_direct=$(get_ini_value "$_config_file" "$_task_name" "direct")
 
     # Remove ALL existing keys in section (to force reordering)
     local _existing_keys=$(get_keys_in_section "$_config_file" "$_task_name")
@@ -304,6 +313,7 @@ function process_symlink_task() {
     # Append Options
     # Desired order: target_dir, pkg_dirs, silent...
     # --> append: silent (bottom), pkg_dirs, target_dir (top)
+    [ -n "$_raw_direct" ] && append_key "$_config_file" "$_task_name" "direct" "$_raw_direct"
     [ -n "$_raw_silent" ] && append_key "$_config_file" "$_task_name" "silent" "$_raw_silent"
     [ -n "$_raw_pkg_dirs" ] && append_key "$_config_file" "$_task_name" "pkg_dirs" "$_raw_pkg_dirs"
     [ -n "$_raw_target_dir" ] && append_key "$_config_file" "$_task_name" "target_dir" "$_raw_target_dir"
@@ -440,13 +450,14 @@ function dot() {
 
                 _t_pkg_dirs=$(get_ini_value "$CONFIG_FILE" "$_section" "pkg_dirs")
                 _t_silent=$(get_ini_value "$CONFIG_FILE" "$_section" "silent")
+                _t_direct=$(get_ini_value "$CONFIG_FILE" "$_section" "direct")
 
                 # Apply Global Silent logic if not overridden by task?
                 # Usually command line flag overrides config.
                 _eff_silent=$_t_silent
                 [ "$_silent" == "true" ] && _eff_silent="true"
 
-                process_symlink_task "$_section" "$_t_target" "$_t_pkg_dirs" "$_eff_silent" "$CONFIG_FILE" "$DOTFILES_DIR"
+                process_symlink_task "$_section" "$_t_target" "$_t_pkg_dirs" "$_eff_silent" "$CONFIG_FILE" "$DOTFILES_DIR" "$_t_direct"
             fi
         fi
     done
